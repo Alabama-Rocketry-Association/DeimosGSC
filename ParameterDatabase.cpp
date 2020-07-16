@@ -13,7 +13,7 @@ double rollRef[] = {0, 0, 1}; // reference roll axis
 
 	//position and orientation
 		//necessary variables
-			double pitch;	//rotation about *pitch* axis
+			double pitch;	//rotation about *pitch* axis (radians)
 			double a_x;		//acceleration???
 			double a_y;
 			double a_z;
