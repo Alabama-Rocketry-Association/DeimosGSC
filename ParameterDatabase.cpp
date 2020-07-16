@@ -22,6 +22,7 @@ double s = cos(pitch / 2)
 double V_x = sin(pitch / 2) * a_x;
 double V_y = sin(pitch / 2) * a_y;
 double V_z = sin(pitch / 2) * a_z;
+double velocity[] = {V_x, V_y, V_z};	//a vector (ik it's an array we're gonna figure that out) containing the three dimensional velocities
 	//Quaternion vector
 		double Quaternion[] = {s, V_x, V_y, V_z};
 
@@ -40,3 +41,7 @@ double V_z = sin(pitch / 2) * a_z;
 		//Reference inertia tensor
 
 		double inertiaTensor[] = {{I_xx, 0, 0}, {0, I_yy, 0}, {0, 0, I_zz}};
+
+	//Quaternion derivative
+		double s_dot = 0.50 * dot(angVelocity, velocity);	//"dot" will be a dot product function, angular velocity has not been defined yet
+		double v_dot = 0.50 * (s * angVelocity + cross(angVelocity, velocity))		//"cross" will be a cross product function
