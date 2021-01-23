@@ -8,7 +8,7 @@ from mpl_toolkits import mplot3d
 import requests
 import json
 import time
-
+#this is a test change
 #38.2527° N, 85.7585° W -- Louisville
 #33.2098° N, 87.5692° W -- Tuscaloosa
 #32.9904° N, 106.9750° W -- Spaceport America
@@ -32,11 +32,12 @@ location = data["name"]
 ambientTemp = data["main"]["temp"]  #KELVIN
 windSpeed = data["wind"]["speed"]
 windDirection = data["wind"]["deg"]
-ambientPressure = data["main"]["pressure"]
+ambientPressure = data["main"]["pressure"]      #HECTOPASCHALS
 humidity = data["main"]["humidity"]
 print("Location: ", location)
 print("Wind: ", windSpeed)
 print("Temp: ", ambientTemp)
+print("Ambient Pressure: ", ambientPressure)
 
 #######################
 #end of weather request
@@ -59,8 +60,15 @@ def thrust(t, burnTime, c0, c1, c2, c3, c4, c5, c6, **kwargs):   #calculate thru
 def rocketMass(launchMass, thrust, jonConst, **kwargs):
     return launchMass - thrust / jonConst
 
+###########
+#Drag Functions
+###########
+a = 6.5/1000    #dTemp/dh
+n = 5.2561      #
+
 #this is the azimuth direction as a unit vector (e, n, u)
 direction = [3/7.07, 4/7.07, 5/7.07]
+direction = [0, 0, 1]
 
 #motor stats
 burnTime = 12.4      #burn time of the motor (s)
