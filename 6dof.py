@@ -8,7 +8,7 @@ from mpl_toolkits import mplot3d
 import requests
 import json
 import time
-#this is a test change
+
 #38.2527° N, 85.7585° W -- Louisville
 #33.2098° N, 87.5692° W -- Tuscaloosa
 #32.9904° N, 106.9750° W -- Spaceport America
@@ -32,7 +32,7 @@ location = data["name"]
 ambientTemp = data["main"]["temp"]  #KELVIN
 windSpeed = data["wind"]["speed"]
 windDirection = data["wind"]["deg"]
-ambientPressure = data["main"]["pressure"]      #HECTOPASCHALS
+ambientPressure = 100 * data["main"]["pressure"]      #HECTOPASCHALS (multiply by 100 to yield Pa)
 humidity = data["main"]["humidity"]
 print("Location: ", location)
 print("Wind: ", windSpeed)
@@ -42,6 +42,8 @@ print("Ambient Pressure: ", ambientPressure)
 #######################
 #end of weather request
 #######################
+
+#FUNCTIONS
 
 def RK4(f, x, y, dx):   #4th-order Runge-Kutta integration
     k1 = f(x, y)
@@ -61,31 +63,36 @@ def rocketMass(launchMass, thrust, jonConst, **kwargs):
     return launchMass - thrust / jonConst
 
 ###########
-#Drag Functions
+# Drag Functions
 ###########
-a = 6.5/1000    #dTemp/dh
-n = 5.2561      #
+def drag(rho, vel, area, C_d = 0.5):        #C_d = 0.5 for a cone
+    return (C_d*(1/2)*(rho)*(vel**2)*(area))
+
+def p_atm(h):       #air pressure profile by altitude (Pa)
+    carsaroni = (M_air * g) / (R * T_lapse)       #unsure if g should be positive or negative (g is hardcoded as negative)
+    return ((ambientTemp / temp(h))**carsaroni) * ambientPressure  #carson i love you - passionately
+
+def density(h):
+    return p_atm(h) / (temp(h) * R_spec)
+
+def temp(h):        #air temperature profile by altitude
+    return ambientTemp - dTdh*h
+
+
+###########
+#END OF FUNCTIONS
+###########
+
 
 #this is the azimuth direction as a unit vector (e, n, u)
-direction = [3/7.07, 4/7.07, 5/7.07]
-direction = [0, 0, 1]
-
-#motor stats
-burnTime = 12.4      #burn time of the motor (s)
-startTime = 0
-endTime = burnTime + 10    #how long the for loop is gonna run for (s)
-totalImpulse = 10133
-motorMass = 8.492   #mass of motor case + propellant (kgs)
-propMass = 4.892   #mass of motor propellant (kgs)
-jonConst = totalImpulse / propMass
-#rocket stats
-dryMass = 15.258     #mass of the rocket (kgs)
-launchMass = dryMass + motorMass
+direction = [3/7.07, 4/7.07, 5/7.07]    #3-4-5 triangle
+direction = [0.0872, 0, 0.9962]     #85-degrees east
+negdirection = [0, 0, 0]    #initialized to zero
+V_abs = 0       #initialized to zero
 
 #step size up front
-h = 0.01
+dt = 0.01
 t = 0
-dt = h
 
 kwargs = {
     "t"  : 0,
@@ -102,28 +109,49 @@ kwargs = {
     "Sn" : 0,
     "Su" : 0,
     #constants in the six-degree polynomial. global so its easier to change
-    "c0" : 712.75,
-    "c1" : 1900.2,
-    "c2" : -1346.9,
-    "c3" : 384.66,
-    "c4" : -52.941,
-    "c5" : 3.4619,
-    "c6" : -0.0863,
+    "c0" : -23.528,
+    "c1" : 6587.4,
+    "c2" : -8901.7,
+    "c3" : 5369.7,
+    "c4" : -1607.9,
+    "c5" : 232.9,
+    "c6" : -13.113,
     #motor stats
     "startTime" : 0,
-    "burnTime" : 12.4,     #burn time of the motor (s)
-    "mass" : 15.258,
+    "burnTime" : 4.6,     #burn time of the motor (s)
+    "mass" : 50,    #gross estimate
+    "cluster" : 3,      #the number of motors in the cluster
+    #DRAG (AKA "Rocket Specs Shit")
+    "Base Area" : 0.0003236547,      #area of rocket head
+    "DRAG" : 0,     #must be initialized to zero (since zero velocity at t = 0)
 }
+
+#motor stats
+burnTime = 4.6      #burn time of the motor (s)
+impulse = 5500  #total impulse of each motor
+totalImpulse = kwargs["cluster"] * impulse
+propMass = kwargs["cluster"] * 3.00   #mass of motor propellant (kgs)
+jonConst = totalImpulse / propMass
+
+#Aero Specs
+dTdh = 6/1000     #Kelvin / Meter
+R = 8.314   #N*m / mol * K
+M_air = 0.0289644   #Molar mass of Earth's air
+g = -9.81    #gravity (m/s^2)
+R_spec = R/M_air
+T_lapse = 0.00976   #K/m
+########
 
 #dictionary for each thrust value per time step
 thrustDict = {}
 time = 0
 while time < kwargs["burnTime"]:
-    thrustDict[str(time)] = thrust(**kwargs)
+    thrustDict[str(time)] = kwargs["cluster"]*thrust(**kwargs)
     time = time + dt
     kwargs["t"] = kwargs["t"] + dt
 kwargs["t"] = 0
 kwargs["thrustVals"] = thrustDict       #add dictionary of thrust values to kwargs
+#print(kwargs["thrustVals"])
 
 ############################################
 #the following begins the integration method
@@ -134,7 +162,7 @@ kwargs["thrustVals"] = thrustDict       #add dictionary of thrust values to kwar
 #              Ae, An, Au      Ve, Vn, Vu      Se, Sn, Su
 AVS_Store = [   [[],[],[]],     [[],[],[]],     [[],[],[]]   ]
 t = 0   #try to get rid of this
-AVS_Temp = ([0, 0, 0], [0, 0, 0], [0, 0, 0])     #ae, an, au, ve, vn, vu, se, sn, su -- this triple holds the temporary AVS vectors
+AVS_Temp = ([0, 0, 0], [0, 0, 0], [0, 0, 10])     #ae, an, au, ve, vn, vu, se, sn, su -- this triple holds the temporary AVS vectors
 #vectors to store K values
 k1 = [0, 0, 0]
 k2 = [0, 0, 0]
@@ -147,17 +175,32 @@ while (AVS_Temp[2][2]>= 0):      #while height >= 0
             if (t < burnTime):     #while motor is burning
                 kwargs["THRUST"] = kwargs["thrustVals"][str(t)]     #find thrust at time t
                 kwargs["mass"] = kwargs["mass"] - (kwargs["THRUST"] * dt / jonConst)     #find mas at time t
-                kwargs["ACCELERATION"] = kwargs["THRUST"]  / kwargs["mass"]      #acceleration at time t = thrust(t) / mass
+                kwargs["ACCELERATION"] = kwargs["THRUST"] / kwargs["mass"]      #acceleration at time t = thrust(t) / mass
+                V_mag = np.linalg.norm(AVS_Temp[1])     #find magnitude of velocity vector
+                if (V_mag > 0 and t > 0.1):  # since this value is a denominator, it cannot be zero
+                    for d in range(0, 3):  # calculate the direction vector and its negative
+                        direction[d] = (1 / V_mag) * AVS_Temp[1][d]
+                        negdirection[d] = -1 * direction[d]
+                kwargs["DRAG"] = drag(density(AVS_Temp[2][2]), V_mag, kwargs["Base Area"])      #calculate drag     #need to add C_d
                 for j in range(0,3):    #iterate through acceleration vector
                     AVS_Temp[i][j] = direction[j] * kwargs["ACCELERATION"]   #implement unit vector of direction
+                    AVS_Temp[i][j] = AVS_Temp[i][j] + negdirection[j] * kwargs["DRAG"]
                     if j == 2 :     #for gravity always acting on "up" (z axis)
-                        AVS_Temp[i][j] = AVS_Temp[i][j] - 9.81
-                        AVS_Store[i][j].append(AVS_Temp[i][j] - 9.81)
+                        AVS_Temp[i][j] = AVS_Temp[i][j] + g
+                        AVS_Store[i][j].append(AVS_Temp[i][j])
             else :  #after motor burnout, acceleration is (0, 0, -9.81) m/s^2
                 AVS_Temp[0][0] = 0
                 AVS_Temp[0][1] = 0
-                AVS_Temp[0][2] = -9.81
-                AVS_Store[0][2].append(-9.81)
+                AVS_Temp[0][2] = g
+                AVS_Store[0][2].append(AVS_Temp[0][2])
+                V_mag = np.linalg.norm(AVS_Temp[1])     #find magnitude of velocity vector
+                if (V_mag > 0):     #since this value is a denominator, it cannot be zero
+                    for d in range(0,3):    #calculate the direction vector and its negative
+                        direction[d] = (1/V_mag)*AVS_Temp[1][d]
+                        negdirection[d] = -1 * direction[d]
+                kwargs["DRAG"] = drag(density(AVS_Temp[2][2]), V_mag, kwargs["Base Area"])  # calculate drag    #need to add C_d
+                for j in range(0,3):
+                    AVS_Temp[i][j] = AVS_Temp[i][j] + negdirection[j] * kwargs["DRAG"]
         else :      #for velocity and position vectors
             for j in range(0,3):    #integrated runge kutta to solve Ve, Vn, Vu, Se, Sn, Su
                 k1[j] = AVS_Temp[i-1][j]
@@ -182,3 +225,4 @@ fig = plt.figure()
 ax = plt.axes(projection = '3d')
 ax.plot3D(xLine, yLine, zLine, 'blue')
 plt.show()
+
