@@ -4,7 +4,7 @@ import scipy
 from scipy import integrate
 from matplotlib import pyplot as plt
 import pandas as pd
-
+#beans
 def RK4(f, x, y, dx):   #4th-order Runge-Kutta integration
     k1 = f(x, y)
     k2 = f(x + 0.5*dx, y + 0.5*k1*dx)
