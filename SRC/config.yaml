@@ -1,0 +1,10 @@
+motor_data:
+  data_dir: "rocket_data/Cesaroni_5506M1230-P.csv"
+
+rocket_stats:
+  #rocket model config 
+
+radio_config:
+  device: "/dev/ttyUSB0"
+  baudrate: 115200
+
