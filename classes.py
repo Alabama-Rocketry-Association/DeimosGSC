@@ -1,3 +1,5 @@
+import requests
+
 class rocket:
     startTime = 0.0
     #motor
@@ -25,10 +27,6 @@ class logData:
     THRUST = 0
     ACCELERATION = 0
     DRAG = 0.0
-    def __init__(self, t, AVS_Temp, AVS_Store):
-        self.t = t
-        self.AVS_Temp = AVS_Temp
-        self.AVS_Store = AVS_Store
 
 class weatherData():
     lat = "33.2098"	#lattitude, USE POSITIVE FOR NORTH

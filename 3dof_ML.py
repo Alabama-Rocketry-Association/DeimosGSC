@@ -147,7 +147,7 @@ thrustDict = GENERATE_THRUST_DICT(t, dt, filename)
 start_time = time.time()
 INTEGRATE(rocket, log)
 print("--- %s seconds ---" % (time.time() - start_time))
-#PLOT3D(log)
+PLOT3D(log)
 """
 def graph(log):
     fig = Figure(figsize = (5,5), dpi = 100)
